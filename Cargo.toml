@@ -26,5 +26,20 @@ ort = { version = "2.0.0-rc.10", default-features = false, features = ["download
 ndarray = "0.16"
 lazy_static = "1.5.0"
 
+# Web server dependencies
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 [dev-dependencies]
 rustfmt = "0.10.0"
+
+# Force all C/C++ code to use dynamic CRT on Windows
+[profile.dev.build-override]
+opt-level = 0
+
+[profile.release.build-override]
+opt-level = 0

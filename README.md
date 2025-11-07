@@ -57,25 +57,98 @@ This creates an emotional landscape where every feeling can be precisely mapped 
 
 ## 🚀 Getting Started
 
+### 🌐 Web API Server (Recommended)
+
+The easiest way to use the Neural Affect Matrix is through the RESTful HTTP API.
+
+**Start the server:**
+```bash
+# Development mode
+cargo run
+
+# Production mode
+cargo run --release
+
+# Custom port
+PORT=8080 cargo run --release
+```
+
+Server will start on `http://localhost:3000` by default.
+
+**Quick test:**
+```bash
+# Check health
+curl http://localhost:3000/health
+
+# Initialize model
+curl -X POST http://localhost:3000/api/v1/initialize -H "Content-Type: application/json" -d '{}'
+```
+
+📖 **Full API Documentation**: See [WEB_API.md](./docs/WEB_API.md) for complete API reference, examples, and integration guides.
+
+### 🖥️ Web UI Test Interface
+
+A simple but powerful web interface for testing and visualizing the API.
+
+**Open the interface:**
+```bash
+# Windows
+start web-ui/index.html
+
+# Linux/Mac
+open web-ui/index.html
+```
+
+**Features:**
+- 🎮 Interactive NPC creation and management
+- 📊 Real-time emotion visualization with circumplex model
+- 💬 Test interactions and see emotional responses
+- 💾 View and manage NPC memories
+- 📋 Operation logs and status monitoring
+
+📖 **Web UI Documentation**: See [web-ui/README.md](./web-ui/README.md) for detailed usage guide.
+
+---
+
+### 📦 Native Library (FFI)
+
 **Build for production**
 
-Since the majority of video game engines run on Windows, we've streamlined the build process to make integration as simple as possible.
+The build process supports both Windows and Linux platforms using Docker for consistent builds across environments.
 
 ```bash
 chmod +x build.sh
+
+# Build for Windows (default)
 ./build.sh
+# or explicitly
+./build.sh windows
+
+# Build for Linux
+./build.sh linux
 ```
 
 **Find your binaries**
 
+After building, you'll find platform-specific binaries in the `dist/` directory:
+
+**Windows:**
 ```
 📁 dist/
-├── npc_neural_affect_matrix.dll     # Main file
+├── npc_neural_affect_matrix.dll     # Main library
 ├── onnxruntime.dll                  # AI runtime
 └── onnxruntime_providers_shared.dll # AI providers
 ```
 
-_**Note**: Docker is required to execute build.sh_
+**Linux:**
+```
+📁 dist/
+├── libnpc_neural_affect_matrix.so        # Main library
+├── libonnxruntime.so                     # AI runtime
+└── libonnxruntime_providers_shared.so    # AI providers
+```
+
+_**Note**: Docker is required to execute build.sh for both platforms_
 
 ---
 
@@ -93,6 +166,36 @@ src/
 │   ├── emotion/      # Neural emotion prediction
 │   └── memory/       # Memory management
 ├── config/           # Configuration handling
+```
+
+### Platform Support
+
+The Neural Affect Matrix is built to be cross-platform:
+
+| Platform | Architecture | Status | Library Format |
+|----------|-------------|--------|----------------|
+| Windows  | x86_64      | ✅ Supported | `.dll` |
+| Linux    | x86_64      | ✅ Supported | `.so` |
+| macOS    | x86_64/ARM64 | 🚧 Planned | `.dylib` |
+
+**Requirements:**
+- Docker (for building)
+- Rust 1.70+ (for development/testing)
+- ONNX Runtime 1.22.1 (automatically downloaded during build)
+
+**Native Development:**
+```bash
+# Run tests (native, no Docker needed)
+cargo test
+
+# Build natively for your current platform
+cargo build --release
+
+# Format code
+cargo fmt
+
+# Run linter
+cargo clippy
 ```
 
 ---
