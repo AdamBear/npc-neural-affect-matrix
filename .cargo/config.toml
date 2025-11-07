@@ -3,3 +3,16 @@ target-dir = "target"
 
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-mmacosx-version-min=13.0"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "link-arg=/NODEFAULTLIB:libcmt.lib",
+    "-C", "link-arg=/NODEFAULTLIB:libcpmt.lib",
+]
+
+# Force dynamic CRT for all C/C++ code compiled by build scripts
+[env]
+CRT_STATIC = "false"
+CFLAGS = "/MD"
+CXXFLAGS = "/MD"
+CC_FORCE_CRT_STATIC = "false"

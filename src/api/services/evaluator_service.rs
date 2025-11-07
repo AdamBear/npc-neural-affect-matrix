@@ -7,6 +7,11 @@ pub static NPC_SESSIONS: OnceLock<Mutex<HashMap<NpcId, MemoryEmotionEvaluator>>>
 pub static SHARED_MODEL: OnceLock<Arc<Mutex<EmotionPredictor>>> = OnceLock::new();
 
 pub fn initialize_shared_model() -> Result<(), *mut ApiResult> {
+    // Check if model is already initialized (idempotent behavior)
+    if SHARED_MODEL.get().is_some() {
+        return Ok(()); // Already initialized, return success
+    }
+
     let predictor = EmotionPredictor::new().map_err(|e| {
         Box::into_raw(Box::new(ApiResult::error(format!(
             "Failed to initialize model: {:?}",
@@ -14,11 +19,12 @@ pub fn initialize_shared_model() -> Result<(), *mut ApiResult> {
         ))))
     })?;
 
-    SHARED_MODEL
-        .set(Arc::new(Mutex::new(predictor)))
-        .map_err(|_| Box::into_raw(Box::new(ApiResult::error("Model already initialized".to_string()))))?;
-
-    Ok(())
+    // Try to set the model, but if it fails because another thread already initialized it,
+    // that's also fine (race condition)
+    match SHARED_MODEL.set(Arc::new(Mutex::new(predictor))) {
+        Ok(_) => Ok(()),
+        Err(_) => Ok(()), // Another thread initialized it, that's fine
+    }
 }
 
 pub fn get_npc_sessions_with_timeout(

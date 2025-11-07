@@ -1,0 +1,68 @@
+# Multi-stage build for optimized Web API server
+FROM rust:1.70 as builder
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy dependency manifests
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code
+COPY src ./src
+COPY assets ./assets
+COPY model ./model
+
+# Download ONNX Runtime
+RUN wget -O onnxruntime.tgz "https://github.com/microsoft/onnxruntime/releases/download/v1.22.1/onnxruntime-linux-x64-1.22.1.tgz" && \
+    tar -xzf onnxruntime.tgz && \
+    mkdir -p /app/onnxruntime && \
+    cp -r onnxruntime-linux-x64-1.22.1/* /app/onnxruntime/ && \
+    rm -rf onnxruntime.tgz onnxruntime-linux-x64-1.22.1/
+
+# Set ONNX Runtime environment variables
+ENV ORT_LIB_LOCATION=/app/onnxruntime/lib
+ENV ORT_SKIP_DOWNLOAD=true
+ENV ORT_PREFER_DYNAMIC_LINK=true
+ENV ORT_STRATEGY=system
+ENV ORT_DYLIB_PATH=/app/onnxruntime/lib
+
+# Build the application
+RUN cargo build --release --bin npc-neural-affect-matrix
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the binary from builder
+COPY --from=builder /app/target/release/npc-neural-affect-matrix /usr/local/bin/npc-neural-affect-matrix
+
+# Copy ONNX Runtime libraries
+COPY --from=builder /app/onnxruntime/lib/*.so* /usr/local/lib/
+
+# Copy model and assets
+COPY --from=builder /app/model /app/model
+COPY --from=builder /app/assets /app/assets
+
+# Update library cache
+RUN ldconfig
+
+# Expose the port
+EXPOSE 3000
+
+# Set environment variables
+ENV RUST_LOG=npc_neural_affect_matrix=info,tower_http=info
+ENV PORT=3000
+
+# Run the server
+CMD ["npc-neural-affect-matrix"]

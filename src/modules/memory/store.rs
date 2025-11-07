@@ -2,6 +2,8 @@ use crate::api::types::NpcId;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 lazy_static! {
@@ -25,11 +27,121 @@ impl MemoryStore {
         MemoryStore
     }
 
-    pub fn insert(npc_id: &NpcId, record: MemoryRecord) -> Result<(), String> {
-        let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
-        let npc_memory = npc_memories.entry(npc_id.clone()).or_insert_with(Vec::new);
+    /// Get the storage directory for NPC memories
+    fn get_storage_dir() -> Result<PathBuf, String> {
+        let base_path = std::env::current_exe()
+            .or_else(|_| std::env::current_dir())
+            .unwrap_or_else(|_| ".".into());
 
-        npc_memory.push(record);
+        let storage_dir = base_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("npc_data");
+
+        fs::create_dir_all(&storage_dir)
+            .map_err(|e| format!("Failed to create storage directory: {}", e))?;
+
+        Ok(storage_dir)
+    }
+
+    /// Get the file path for a specific NPC's memory
+    fn get_npc_file_path(npc_id: &NpcId) -> Result<PathBuf, String> {
+        let storage_dir = Self::get_storage_dir()?;
+        Ok(storage_dir.join(format!("{}.json", npc_id)))
+    }
+
+    /// Save NPC memory to JSON file
+    pub fn save_to_file(npc_id: &NpcId) -> Result<(), String> {
+        let npc_memories = NPC_MEMORIES
+            .lock()
+            .map_err(|_| "Failed to acquire lock".to_string())?;
+
+        let records = npc_memories.get(npc_id).cloned().unwrap_or_default();
+
+        let file_path = Self::get_npc_file_path(npc_id)?;
+        let json_data = serde_json::to_string_pretty(&records)
+            .map_err(|e| format!("Failed to serialize memory: {}", e))?;
+
+        fs::write(&file_path, json_data)
+            .map_err(|e| format!("Failed to write memory file: {}", e))?;
+
+        Ok(())
+    }
+
+    /// Load NPC memory from JSON file
+    pub fn load_from_file(npc_id: &NpcId) -> Result<Vec<MemoryRecord>, String> {
+        let file_path = Self::get_npc_file_path(npc_id)?;
+
+        if !file_path.exists() {
+            return Ok(Vec::new()); // No saved data, return empty
+        }
+
+        let json_data = fs::read_to_string(&file_path)
+            .map_err(|e| format!("Failed to read memory file: {}", e))?;
+
+        let records: Vec<MemoryRecord> = serde_json::from_str(&json_data)
+            .map_err(|e| format!("Failed to deserialize memory: {}", e))?;
+
+        Ok(records)
+    }
+
+    /// Load all NPC memories from disk on startup
+    pub fn load_all_from_disk() -> Result<usize, String> {
+        let storage_dir = Self::get_storage_dir()?;
+
+        if !storage_dir.exists() {
+            return Ok(0);
+        }
+
+        let mut loaded_count = 0;
+        let entries = fs::read_dir(&storage_dir)
+            .map_err(|e| format!("Failed to read storage directory: {}", e))?;
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                if let Some(npc_id) = path.file_stem().and_then(|s| s.to_str()) {
+                    match Self::load_from_file(&npc_id.to_string()) {
+                        Ok(records) if !records.is_empty() => {
+                            let mut npc_memories = NPC_MEMORIES
+                                .lock()
+                                .map_err(|_| "Failed to acquire lock".to_string())?;
+                            npc_memories.insert(npc_id.to_string(), records);
+                            loaded_count += 1;
+                        }
+                        Ok(_) => {} // Empty file, skip
+                        Err(e) => {
+                            eprintln!("Warning: Failed to load memory for NPC {}: {}", npc_id, e);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(loaded_count)
+    }
+
+    /// Delete the JSON file for a specific NPC
+    pub fn delete_file(npc_id: &NpcId) -> Result<(), String> {
+        let file_path = Self::get_npc_file_path(npc_id)?;
+
+        if file_path.exists() {
+            fs::remove_file(&file_path)
+                .map_err(|e| format!("Failed to delete memory file: {}", e))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn insert(npc_id: &NpcId, record: MemoryRecord) -> Result<(), String> {
+        {
+            let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
+            let npc_memory = npc_memories.entry(npc_id.clone()).or_insert_with(Vec::new);
+            npc_memory.push(record);
+        }
+
+        // Auto-save to disk after insert
+        Self::save_to_file(npc_id)?;
 
         Ok(())
     }
@@ -71,29 +183,43 @@ impl MemoryStore {
             }
         }
 
-        let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
-        let npc_memory = npc_memories.entry(npc_id.clone()).or_insert_with(Vec::new);
+        {
+            let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
+            let npc_memory = npc_memories.entry(npc_id.clone()).or_insert_with(Vec::new);
 
-        npc_memory.clear();
-        npc_memory.extend(records);
+            npc_memory.clear();
+            npc_memory.extend(records);
+        }
+
+        // Auto-save to disk after import
+        Self::save_to_file(npc_id)?;
 
         Ok(())
     }
 
     pub fn clear(npc_id: &NpcId) -> Result<(), String> {
-        let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
+        {
+            let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
 
-        if let Some(npc_memory) = npc_memories.get_mut(npc_id) {
-            npc_memory.clear();
+            if let Some(npc_memory) = npc_memories.get_mut(npc_id) {
+                npc_memory.clear();
+            }
         }
+
+        // Auto-save to disk after clear
+        Self::save_to_file(npc_id)?;
 
         Ok(())
     }
 
     pub fn remove_npc(npc_id: &NpcId) -> Result<(), String> {
-        let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
+        {
+            let mut npc_memories = NPC_MEMORIES.lock().map_err(|_| "Failed to acquire lock")?;
+            npc_memories.remove(npc_id);
+        }
 
-        npc_memories.remove(npc_id);
+        // Delete the file when NPC is removed
+        Self::delete_file(npc_id)?;
 
         Ok(())
     }
