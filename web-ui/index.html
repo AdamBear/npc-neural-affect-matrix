@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPC Neural Affect Matrix - Web API 测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status.waiting {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .response-box {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .emotion-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .emotion-item {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .emotion-item .label {
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .emotion-item .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .emotion-meter {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .emotion-meter-fill {
+            height: 100%;
+            transition: width 0.5s, background 0.5s;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .emotion-display {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .npc-list {
+            list-style: none;
+        }
+
+        .npc-list li {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .npc-list li.active {
+            background: #dbeafe;
+            border: 2px solid #667eea;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-time {
+            color: #6b7280;
+        }
+
+        /* 改进的情绪环样式 */
+        .circumplex-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .circumplex {
+            width: 500px;
+            height: 500px;
+            position: relative;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 50% 50%,
+                    rgba(255, 255, 255, 0.3) 0%,
+                    rgba(255, 255, 255, 0) 70%
+                ),
+                conic-gradient(from 45deg,
+                    #fca5a5 0deg,    /* 左上 - 负面高唤醒 (红色) */
+                    #fde68a 90deg,   /* 上 - 中性高唤醒 (黄色) */
+                    #86efac 180deg,  /* 右上 - 正面高唤醒 (绿色) */
+                    #7dd3fc 225deg,  /* 右 - 正面中唤醒 (青色) */
+                    #93c5fd 270deg,  /* 右下 - 正面低唤醒 (蓝色) */
+                    #d1d5db 315deg,  /* 下 - 中性低唤醒 (灰色) */
+                    #fca5a5 360deg   /* 左下回到左上 (红色) */
+                );
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* 中心网格线 */
+        .circumplex::before,
+        .circumplex::after {
+            content: '';
+            position: absolute;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .circumplex::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .circumplex::after {
+            height: 2px;
+            width: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* 情绪点 */
+        .emotion-point {
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border: 4px solid white;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .emotion-point:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8);
+        }
+
+        /* 主轴标签 - 更大更粗 */
+        .axis-label {
+            position: absolute;
+            font-weight: 700;
+            font-size: 1.15em;
+            color: #1f2937;
+            text-shadow: none;
+        }
+
+        .axis-label.top {
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .axis-label.bottom {
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .axis-label.left {
+            left: -70px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .axis-label.right {
+            right: -70px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* 情绪标签 */
+        .emotion-label {
+            position: absolute;
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #374151;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+            white-space: nowrap;
+        }
+
+        /* Converted from reference SVG coordinates (700x700 -> 500x500) */
+        /* Reference: center (350,350), radius 270 */
+
+        /* Excited: x=453, y=63 -> 64.7%, 9% */
+        .emotion-label.excited { top: 9%; left: 64.7%; transform: translateX(-50%); }
+
+        /* Delighted: x=616, y=156 -> 88%, 22% */
+        .emotion-label.delighted { top: 22%; left: 88%; transform: translateX(-50%); }
+
+        /* Happy: x=673, y=289 -> 96%, 41% */
+        .emotion-label.happy { top: 41%; left: 96%; transform: translateX(-50%); }
+
+        /* Content: x=673, y=410 -> 96%, 58% */
+        .emotion-label.content { top: 58%; left: 96%; transform: translateX(-50%); }
+
+        /* Relaxed: x=616, y=543 -> 88%, 77% */
+        .emotion-label.relaxed { top: 77%; left: 88%; transform: translateX(-50%); }
+
+        /* Calm: x=453, y=636 -> 64.7%, 90% */
+        .emotion-label.calm { top: 90%; left: 64.7%; transform: translateX(-50%); }
+
+        /* Tired: x=246, y=636 -> 35%, 90% */
+        .emotion-label.tired { top: 90%; left: 35%; transform: translateX(-50%); }
+
+        /* Bored: x=83, y=543 -> 12%, 77% */
+        .emotion-label.bored { top: 77%; left: 12%; transform: translateX(-50%); }
+
+        /* Depressed: x=26, y=410 -> 4%, 58% */
+        .emotion-label.depressed { top: 58%; left: 4%; transform: translateX(-50%); }
+
+        /* Frustrated: x=26, y=289 -> 4%, 41% */
+        .emotion-label.frustrated { top: 41%; left: 4%; transform: translateX(-50%); }
+
+        /* Angry: x=83, y=156 -> 12%, 22% */
+        .emotion-label.angry { top: 22%; left: 12%; transform: translateX(-50%); }
+
+        /* Tense: x=246, y=63 -> 35%, 9% */
+        .emotion-label.tense { top: 9%; left: 35%; transform: translateX(-50%); }
+
+        /* 悬浮信息卡 */
+        .emotion-tooltip {
+            position: fixed;
+            background: rgba(31, 41, 55, 0.95);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 0.95em;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 20;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            min-width: 160px;
+        }
+
+        .emotion-tooltip.visible {
+            opacity: 1;
+        }
+
+        .emotion-tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 20px;
+        }
+
+        .emotion-tooltip-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .emotion-tooltip-label {
+            font-weight: 600;
+            color: #9ca3af;
+        }
+
+        .emotion-tooltip-value {
+            font-weight: 700;
+            font-size: 1.2em;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 NPC Neural Affect Matrix</h1>
+            <p>Web API 测试界面</p>
+        </div>
+
+        <!-- 服务器状态 -->
+        <div class="card">
+            <h2>📡 服务器状态</h2>
+            <div id="server-status" class="status disconnected">未连接</div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="checkHealth()">检查健康状态</button>
+                <button class="btn-success" onclick="initializeModel()">初始化模型</button>
+            </div>
+            <div id="health-response" class="response-box" style="display:none;">
+                <pre id="health-text"></pre>
+            </div>
+        </div>
+
+        <!-- NPC 管理 -->
+        <div class="card">
+            <h2>👤 NPC 管理</h2>
+
+            <div class="form-group">
+                <label>NPC 名称</label>
+                <input type="text" id="npc-name" placeholder="例如: 村庄守卫" value="村庄守卫">
+            </div>
+
+            <div class="form-group">
+                <label>NPC 背景故事</label>
+                <textarea id="npc-background" placeholder="例如: 一个忠诚的守卫，保护村庄15年...">一个忠诚的守卫，保护村庄已有15年。以维护秩序为荣。</textarea>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Valence (愉悦度): <span id="valence-value">0.0</span></label>
+                    <input type="range" id="npc-valence" min="-1" max="1" step="0.1" value="0.0" oninput="updateSliderValue('valence')">
+                </div>
+
+                <div class="form-group">
+                    <label>Arousal (唤醒度): <span id="arousal-value">0.0</span></label>
+                    <input type="range" id="npc-arousal" min="-1" max="1" step="0.1" value="0.0" oninput="updateSliderValue('arousal')">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>记忆衰减率 (0-1)</label>
+                <input type="number" id="memory-decay" min="0" max="1" step="0.01" value="0.1">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-success" onclick="createNPC()">创建 NPC</button>
+                <button class="btn-danger" onclick="deleteCurrentNPC()">删除当前 NPC</button>
+                <button class="btn-primary" onclick="loadExistingNPCs()">刷新列表</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>选择 NPC</label>
+                <select id="npc-select" onchange="onNPCSelectChange()" style="font-size: 1em;">
+                    <option value="">-- 请选择一个 NPC --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 交互测试 -->
+        <div class="card">
+            <h2>💬 交互测试</h2>
+
+            <div class="form-group">
+                <label>当前 NPC ID</label>
+                <input type="text" id="current-npc-id" placeholder="先创建一个 NPC" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>交互文本</label>
+                <textarea id="interaction-text" placeholder="例如: 谢谢你救了我的命！">谢谢你救了我的命！</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>来源 ID (可选)</label>
+                <input type="text" id="source-id" placeholder="例如: player" value="player">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="evaluateInteraction()">评估交互</button>
+                <button class="btn-primary" onclick="getCurrentEmotion()">获取当前情绪</button>
+                <button class="btn-primary" onclick="getEmotionBySource()">获取特定来源情绪</button>
+            </div>
+
+            <!-- 情绪显示 -->
+            <div class="emotion-display">
+                <div class="emotion-item">
+                    <div class="label">Valence (愉悦度)</div>
+                    <div class="value" id="emotion-valence">--</div>
+                    <div class="emotion-meter">
+                        <div class="emotion-meter-fill" id="valence-meter" style="width: 50%; background: #10b981;"></div>
+                    </div>
+                </div>
+                <div class="emotion-item">
+                    <div class="label">Arousal (唤醒度)</div>
+                    <div class="value" id="emotion-arousal">--</div>
+                    <div class="emotion-meter">
+                        <div class="emotion-meter-fill" id="arousal-meter" style="width: 50%; background: #f59e0b;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 改进的情绪环 -->
+            <div class="circumplex-container">
+                <div class="circumplex" id="circumplex">
+                    <!-- 主轴标签 -->
+                    <div class="axis-label top">高唤醒</div>
+                    <div class="axis-label bottom">低唤醒</div>
+                    <div class="axis-label left">负面</div>
+                    <div class="axis-label right">正面</div>
+
+                    <!-- 12个情绪标签 -->
+                    <div class="emotion-label excited">兴奋</div>
+                    <div class="emotion-label tense">紧张</div>
+                    <div class="emotion-label angry">愤怒</div>
+                    <div class="emotion-label frustrated">沮丧</div>
+                    <div class="emotion-label depressed">抑郁</div>
+                    <div class="emotion-label bored">无聊</div>
+                    <div class="emotion-label tired">疲惫</div>
+                    <div class="emotion-label calm">平静</div>
+                    <div class="emotion-label relaxed">放松</div>
+                    <div class="emotion-label content">满足</div>
+                    <div class="emotion-label happy">快乐</div>
+                    <div class="emotion-label delighted">愉悦</div>
+
+                    <!-- 情绪点 -->
+                    <div class="emotion-point" id="emotion-point"></div>
+
+                    <!-- 悬浮信息卡 -->
+                    <div class="emotion-tooltip" id="emotion-tooltip">
+                        <div class="emotion-tooltip-row">
+                            <span class="emotion-tooltip-label">愉悦度:</span>
+                            <span class="emotion-tooltip-value" id="tooltip-valence">0.00</span>
+                        </div>
+                        <div class="emotion-tooltip-row">
+                            <span class="emotion-tooltip-label">唤醒度:</span>
+                            <span class="emotion-tooltip-value" id="tooltip-arousal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 记忆管理 -->
+        <div class="card">
+            <h2>💾 记忆管理</h2>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="getMemory()">获取记忆</button>
+                <button class="btn-warning" onclick="clearMemory()">清除记忆</button>
+            </div>
+
+            <div id="memory-response" class="response-box" style="display:none;">
+                <pre id="memory-text"></pre>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="card">
+            <h2>📋 操作日志</h2>
+            <div id="log" class="log">
+                <div class="log-entry">系统就绪，等待操作...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/v1';
+        let currentNPCId = null;
+        let npcList = [];
+
+        // 更新滑块显示值
+        function updateSliderValue(type) {
+            const value = document.getElementById(`npc-${type}`).value;
+            document.getElementById(`${type}-value`).textContent = parseFloat(value).toFixed(1);
+        }
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 更新情绪显示
+        function updateEmotionDisplay(valence, arousal) {
+            document.getElementById('emotion-valence').textContent = valence.toFixed(2);
+            document.getElementById('emotion-arousal').textContent = arousal.toFixed(2);
+
+            // 更新仪表
+            const valencePercent = ((valence + 1) / 2) * 100;
+            const arousalPercent = ((arousal + 1) / 2) * 100;
+
+            document.getElementById('valence-meter').style.width = valencePercent + '%';
+            document.getElementById('arousal-meter').style.width = arousalPercent + '%';
+
+            // 更新颜色
+            const valenceColor = valence > 0 ? '#10b981' : '#ef4444';
+            const arousalColor = arousal > 0 ? '#f59e0b' : '#3b82f6';
+
+            document.getElementById('valence-meter').style.background = valenceColor;
+            document.getElementById('arousal-meter').style.background = arousalColor;
+
+            // 更新环状图
+            updateCircumplex(valence, arousal);
+        }
+
+        // 更新环状图
+        function updateCircumplex(valence, arousal) {
+            const point = document.getElementById('emotion-point');
+            const tooltip = document.getElementById('emotion-tooltip');
+
+            // 转换坐标 (-1,1) -> (0%, 100%)
+            const x = ((valence + 1) / 2) * 100;
+            const y = ((1 - arousal) / 2) * 100; // Y轴反转
+
+            point.style.left = x + '%';
+            point.style.top = y + '%';
+
+            // 更新悬浮卡数值
+            document.getElementById('tooltip-valence').textContent = valence.toFixed(2);
+            document.getElementById('tooltip-arousal').textContent = arousal.toFixed(2);
+
+            // 显示悬浮卡
+            tooltip.classList.add('visible');
+
+            // 3秒后隐藏
+            setTimeout(() => {
+                tooltip.classList.remove('visible');
+            }, 3000);
+        }
+
+        // 检查健康状态
+        async function checkHealth() {
+            try {
+                addLog('正在检查服务器健康状态...');
+                const response = await fetch('http://localhost:3000/health');
+                const data = await response.json();
+
+                document.getElementById('server-status').className = 'status connected';
+                document.getElementById('server-status').textContent = '已连接';
+
+                document.getElementById('health-response').style.display = 'block';
+                document.getElementById('health-text').textContent = JSON.stringify(data, null, 2);
+
+                addLog('✅ 服务器健康检查通过');
+
+                // 加载已有的 NPC 列表
+                await loadExistingNPCs();
+            } catch (error) {
+                document.getElementById('server-status').className = 'status disconnected';
+                document.getElementById('server-status').textContent = '连接失败';
+                addLog('❌ 服务器连接失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载已有的 NPC 列表
+        async function loadExistingNPCs() {
+            try {
+                addLog('正在加载已有 NPC 列表...');
+                const response = await fetch(API_BASE + '/npcs');
+                const data = await response.json();
+
+                if (data.success && Array.isArray(data.data)) {
+                    npcList = data.data.map(npc => ({
+                        id: npc.npc_id,
+                        name: npc.name,
+                        background: npc.background,
+                        valence: npc.personality.valence,
+                        arousal: npc.personality.arousal
+                    }));
+
+                    updateNPCSelect();
+                    addLog(`✅ 加载了 ${npcList.length} 个已有 NPC`);
+                } else {
+                    addLog('📋 暂无已有 NPC');
+                    npcList = [];
+                    updateNPCSelect();
+                }
+            } catch (error) {
+                addLog('⚠️  加载 NPC 列表失败: ' + error.message);
+            }
+        }
+
+        // 初始化模型
+        async function initializeModel() {
+            try {
+                addLog('正在初始化神经模型...');
+                document.getElementById('server-status').className = 'status waiting';
+                document.getElementById('server-status').textContent = '初始化中...';
+
+                const response = await fetch(API_BASE + '/initialize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('server-status').className = 'status connected';
+                    document.getElementById('server-status').textContent = '模型已就绪';
+                    addLog('✅ ' + data.data.message);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                document.getElementById('server-status').className = 'status disconnected';
+                document.getElementById('server-status').textContent = '初始化失败';
+                addLog('❌ 模型初始化失败: ' + error.message, 'error');
+            }
+        }
+
+        // 创建 NPC
+        async function createNPC() {
+            try {
+                const name = document.getElementById('npc-name').value;
+                const background = document.getElementById('npc-background').value;
+                const valence = parseFloat(document.getElementById('npc-valence').value);
+                const arousal = parseFloat(document.getElementById('npc-arousal').value);
+                const decayRate = parseFloat(document.getElementById('memory-decay').value);
+
+                addLog(`正在创建 NPC: ${name}...`);
+
+                const response = await fetch(API_BASE + '/npcs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config: {
+                            identity: {
+                                name: name,
+                                background: background
+                            },
+                            personality: {
+                                valence: valence,
+                                arousal: arousal
+                            },
+                            memory: {
+                                decay_rate: decayRate
+                            }
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentNPCId = data.data.npc_id;
+                    document.getElementById('current-npc-id').value = currentNPCId;
+
+                    npcList.push({
+                        id: currentNPCId,
+                        name: name,
+                        background: background,
+                        valence: valence,
+                        arousal: arousal
+                    });
+
+                    updateNPCSelect();
+                    addLog(`✅ NPC 创建成功: ${name} (${currentNPCId})`);
+
+                    // 显示初始情绪
+                    updateEmotionDisplay(valence, arousal);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ NPC 创建失败: ' + error.message, 'error');
+            }
+        }
+
+        // 更新 NPC 下拉列表
+        function updateNPCSelect() {
+            const select = document.getElementById('npc-select');
+
+            // 清空现有选项（保留第一个占位符）
+            select.innerHTML = '<option value="">-- 请选择一个 NPC --</option>';
+
+            // 添加所有 NPC 选项
+            npcList.forEach(npc => {
+                const option = document.createElement('option');
+                option.value = npc.id;
+                option.textContent = `${npc.name} (${npc.id.substring(0, 8)}...)`;
+                select.appendChild(option);
+            });
+
+            // 如果有当前选中的 NPC，设置下拉列表的值
+            if (currentNPCId) {
+                select.value = currentNPCId;
+            }
+        }
+
+        // 下拉列表选择变更处理
+        function onNPCSelectChange() {
+            const select = document.getElementById('npc-select');
+            const selectedId = select.value;
+
+            if (selectedId) {
+                selectNPC(selectedId);
+            } else {
+                currentNPCId = null;
+                document.getElementById('current-npc-id').value = '';
+                addLog('已取消选择 NPC');
+            }
+        }
+
+        // 选择 NPC
+        function selectNPC(npcId) {
+            currentNPCId = npcId;
+            document.getElementById('current-npc-id').value = npcId;
+            document.getElementById('npc-select').value = npcId;
+
+            const npc = npcList.find(n => n.id === npcId);
+            if (npc) {
+                // 填充表单字段
+                document.getElementById('npc-name').value = npc.name;
+                document.getElementById('npc-background').value = npc.background;
+                document.getElementById('npc-valence').value = npc.valence;
+                document.getElementById('npc-arousal').value = npc.arousal;
+
+                // 更新滑块显示值
+                document.getElementById('valence-value').textContent = npc.valence.toFixed(1);
+                document.getElementById('arousal-value').textContent = npc.arousal.toFixed(1);
+
+                // 更新情绪显示
+                updateEmotionDisplay(npc.valence, npc.arousal);
+
+                addLog(`切换到 NPC: ${npc.name}`);
+            } else {
+                addLog(`切换到 NPC: ${npcId.substring(0, 8)}...`);
+            }
+        }
+
+        // 删除当前 NPC
+        async function deleteCurrentNPC() {
+            if (!currentNPCId) {
+                alert('请先选择一个 NPC');
+                return;
+            }
+
+            if (!confirm('确定要删除这个 NPC 吗？')) {
+                return;
+            }
+
+            try {
+                addLog(`正在删除 NPC: ${currentNPCId}...`);
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    npcList = npcList.filter(npc => npc.id !== currentNPCId);
+                    currentNPCId = null;
+                    document.getElementById('current-npc-id').value = '';
+                    updateNPCSelect();
+                    addLog('✅ NPC 删除成功');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ NPC 删除失败: ' + error.message, 'error');
+            }
+        }
+
+        // 评估交互
+        async function evaluateInteraction() {
+            if (!currentNPCId) {
+                alert('请先创建或选择一个 NPC');
+                return;
+            }
+
+            try {
+                const text = document.getElementById('interaction-text').value;
+                const sourceId = document.getElementById('source-id').value;
+
+                addLog(`正在评估交互: "${text.substring(0, 30)}..."`);
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId + '/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        source_id: sourceId || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateEmotionDisplay(data.data.valence, data.data.arousal);
+                    addLog(`✅ 交互评估完成: Valence=${data.data.valence.toFixed(2)}, Arousal=${data.data.arousal.toFixed(2)}`);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ 交互评估失败: ' + error.message, 'error');
+            }
+        }
+
+        // 获取当前情绪
+        async function getCurrentEmotion() {
+            if (!currentNPCId) {
+                alert('请先创建或选择一个 NPC');
+                return;
+            }
+
+            try {
+                addLog('正在获取当前情绪...');
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId + '/emotion');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateEmotionDisplay(data.data.valence, data.data.arousal);
+                    addLog(`✅ 当前情绪: Valence=${data.data.valence.toFixed(2)}, Arousal=${data.data.arousal.toFixed(2)}`);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ 获取情绪失败: ' + error.message, 'error');
+            }
+        }
+
+        // 获取特定来源情绪
+        async function getEmotionBySource() {
+            if (!currentNPCId) {
+                alert('请先创建或选择一个 NPC');
+                return;
+            }
+
+            const sourceId = document.getElementById('source-id').value;
+            if (!sourceId) {
+                alert('请输入来源 ID');
+                return;
+            }
+
+            try {
+                addLog(`正在获取对 "${sourceId}" 的情绪...`);
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId + '/emotion/' + sourceId);
+                const data = await response.json();
+
+                if (data.success) {
+                    updateEmotionDisplay(data.data.valence, data.data.arousal);
+                    addLog(`✅ 对 "${sourceId}" 的情绪: Valence=${data.data.valence.toFixed(2)}, Arousal=${data.data.arousal.toFixed(2)}`);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ 获取情绪失败: ' + error.message, 'error');
+            }
+        }
+
+        // 获取记忆
+        async function getMemory() {
+            if (!currentNPCId) {
+                alert('请先创建或选择一个 NPC');
+                return;
+            }
+
+            try {
+                addLog('正在获取记忆...');
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId + '/memory');
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('memory-response').style.display = 'block';
+                    document.getElementById('memory-text').textContent = JSON.stringify(data.data, null, 2);
+                    addLog(`✅ 获取到 ${Array.isArray(data.data) ? data.data.length : 0} 条记忆`);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ 获取记忆失败: ' + error.message, 'error');
+            }
+        }
+
+        // 清除记忆
+        async function clearMemory() {
+            if (!currentNPCId) {
+                alert('请先创建或选择一个 NPC');
+                return;
+            }
+
+            if (!confirm('确定要清除所有记忆吗？')) {
+                return;
+            }
+
+            try {
+                addLog('正在清除记忆...');
+
+                const response = await fetch(API_BASE + '/npcs/' + currentNPCId + '/memory', {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addLog('✅ 记忆已清除');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                addLog('❌ 清除记忆失败: ' + error.message, 'error');
+            }
+        }
+
+        // 鼠标在情绪环上移动时显示对应的情绪数值
+        function setupCircumplexHover() {
+            const circumplex = document.getElementById('circumplex');
+            const tooltip = document.getElementById('emotion-tooltip');
+            const point = document.getElementById('emotion-point');
+
+            circumplex.addEventListener('mousemove', function(e) {
+                const rect = circumplex.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                // 计算鼠标相对于中心的位置
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // 计算距离中心的距离
+                const dx = mouseX - centerX;
+                const dy = mouseY - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const radius = centerX; // 圆的半径
+
+                // 只在圆内时显示
+                if (distance <= radius) {
+                    // 转换为 Valence 和 Arousal 值 (-1 到 1)
+                    const valence = (dx / radius);
+                    const arousal = -(dy / radius); // Y轴反转
+
+                    // 限制在 -1 到 1 之间
+                    const clampedValence = Math.max(-1, Math.min(1, valence));
+                    const clampedArousal = Math.max(-1, Math.min(1, arousal));
+
+                    // 更新悬浮卡数值
+                    document.getElementById('tooltip-valence').textContent = clampedValence.toFixed(2);
+                    document.getElementById('tooltip-arousal').textContent = clampedArousal.toFixed(2);
+
+                    // 定位tooltip跟随鼠标，偏移一点避免遮挡
+                    tooltip.style.left = (e.clientX + 20) + 'px';
+                    tooltip.style.top = (e.clientY + 20) + 'px';
+
+                    // 显示悬浮卡
+                    tooltip.classList.add('visible');
+
+                    // 临时移动情绪点到鼠标位置（半透明显示）
+                    point.style.opacity = '0.5';
+                    const percentX = (mouseX / rect.width) * 100;
+                    const percentY = (mouseY / rect.height) * 100;
+                    point.style.left = percentX + '%';
+                    point.style.top = percentY + '%';
+                } else {
+                    // 鼠标在圆外时隐藏
+                    tooltip.classList.remove('visible');
+                }
+            });
+
+            circumplex.addEventListener('mouseleave', function() {
+                tooltip.classList.remove('visible');
+                // 恢复情绪点的不透明度
+                point.style.opacity = '1';
+            });
+
+            // 点击时设置为该位置的情绪（可选功能）
+            circumplex.addEventListener('click', function(e) {
+                const rect = circumplex.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const dx = mouseX - centerX;
+                const dy = mouseY - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const radius = centerX;
+
+                if (distance <= radius) {
+                    const valence = Math.max(-1, Math.min(1, dx / radius));
+                    const arousal = Math.max(-1, Math.min(1, -(dy / radius)));
+
+                    // 更新显示
+                    updateEmotionDisplay(valence, arousal);
+                    addLog(`🎯 手动设置情绪: Valence=${valence.toFixed(2)}, Arousal=${arousal.toFixed(2)}`);
+
+                    // 恢复情绪点的完全不透明
+                    point.style.opacity = '1';
+                }
+            });
+        }
+
+        // 页面加载时自动检查健康状态
+        window.onload = function() {
+            checkHealth();
+            // 初始化情绪点位置（中心）
+            updateCircumplex(0, 0);
+            // 设置情绪环的鼠标交互
+            setupCircumplexHover();
+        };
+    </script>
+</body>
+</html>
